@@ -5,10 +5,12 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import os
 
-DOCX_PATH = '/home/vla/machine_learning/test1/test1_gxr/test1_Experiment_Report.docx'
-IMG_CM    = '/home/vla/machine_learning/test1/test1_gxr/output/confusion_matrices.png'
-IMG_ROC   = '/home/vla/machine_learning/test1/test1_gxr/output/roc_curves.png'
-OUT_PATH  = '/home/vla/machine_learning/test1/test1_gxr/test1_Experiment_Report_filled.docx'
+DOCX_PATH    = '/home/vla/machine_learning/test1/test1_gxr/test1_Experiment_Report_filled.docx'
+IMG_CM       = '/home/vla/machine_learning/test1/test1_gxr/output/confusion_matrices.png'
+IMG_ROC      = '/home/vla/machine_learning/test1/test1_gxr/output/roc_curves.png'
+IMG_PRF      = '/home/vla/machine_learning/test1/test1_gxr/output/precision_recall_f1.png'
+IMG_HEATMAP  = '/home/vla/machine_learning/test1/test1_gxr/output/metrics_heatmap.png'
+OUT_PATH     = '/home/vla/machine_learning/test1/test1_gxr/test1_Experiment_Report_v2.docx'
 
 doc = Document(DOCX_PATH)
 table = doc.tables[0]
@@ -302,7 +304,7 @@ build_table(c8,
 add_para(c8, '')
 
 # 4.3
-add_sub(c8, '4.3 评估指标深度分析')
+add_sub(c8, '4.3 Precision / Recall / F1 深度分析')
 
 add_para(c8, '（1）Accuracy 的局限性', bold=True)
 add_para(c8, '若模型将全部测试样本预测为"未订阅"，准确率高达 88.7%（与班级同学的算法相当），但 Recall(Yes)=0，银行会错失全部4640位真实订阅客户。本实验三个模型的准确率为85%~90%，略低于"全预测负类"基准，但 Recall(Yes) 达到 83%~95%，才真正具有业务价值。', indent_first=True)
@@ -318,18 +320,73 @@ add_para(c8, 'GridSearchCV 最终选出的最优参数：SMOTE策略选 C=1, pen
 add_para(c8, '（4）逻辑回归的性能上限与工程权衡', bold=True)
 add_para(c8, '实验探索了全量二阶多项式特征（全部58维特征的两两交互，共1711维），在 class_weight 策略下AUC可达0.9528，但SMOTE在1711维×4万样本时产生内存溢出（约2.8GB，超出系统限制）。最终采用精选178维方案，在三种策略上均稳定运行，AUC达0.9488~0.9503，取得性能与内存效率的最优平衡。根据 Moro et al.（2014）原始论文，逻辑回归在此数据集上的理论上限约为0.95~0.96；要突破此上限须引入随机森林、XGBoost等可自动捕捉非线性交互的树模型。', indent_first=True)
 
-# 4.4 混淆矩阵
+# 4.4 可视化分析
 add_sub(c8, '4.4 可视化分析')
-add_para(c8, '图1  混淆矩阵对比（三种不平衡处理策略）', bold=False, align=WD_ALIGN_PARAGRAPH.CENTER)
-if os.path.exists(IMG_CM):
-    add_img(c8, IMG_CM, width_cm=15)
-add_para(c8, '从混淆矩阵可直观看出三种策略的差异：SMOTE使FP（误报）最小（661），漏报（FN=162）相对较多；UnderSample 和 ClassWeight 的 FN 极低（58和50），但代价是 FP 显著上升（1149和1168），即为了不漏掉真正的订阅客户，会将更多无意愿客户也预测为"将订阅"。业务上，银行通常更担心漏报（错过真实客户），因此 ClassWeight 的低漏报策略（FN=50，漏报率5.4%）最具实践价值。', indent_first=True)
+
+# 图1 P/R/F1 柱状图
+add_para(c8, '图1  Precision / Recall / F1-Score 对比柱状图（正类：已订阅 Yes）',
+         bold=False, align=WD_ALIGN_PARAGRAPH.CENTER)
+if os.path.exists(IMG_PRF):
+    add_img(c8, IMG_PRF, width_cm=14)
+add_para(c8,
+    'Precision（精确率）衡量"预测为订阅的人中有多少真的订阅"：SMOTE策略最高（0.537），'
+    '因其正负样本比约2:5，模型阈值相对保守，误报较少；UnderSample和ClassWeight策略均为0.431，'
+    '因训练时正负样本接近1:1，模型更激进地预测订阅，精确率下降。',
+    indent_first=True)
+add_para(c8,
+    'Recall（召回率）衡量"真正订阅的人中有多少被找出来"：ClassWeight策略最高（0.946），'
+    'UnderSample次之（0.938），SMOTE最低（0.825）。这与不平衡处理力度直接相关：'
+    'ClassWeight和UnderSample对正类施加更强的学习倾向，漏报率分别仅5.4%和6.3%。',
+    indent_first=True)
+add_para(c8,
+    'F1-Score（精确率与召回率的调和平均）：SMOTE策略最高（0.651），因其Precision和Recall'
+    '最为均衡；UnderSample和ClassWeight虽Recall更高，但Precision较低，F1约0.590。'
+    '业务选择上：追求综合性能选SMOTE，追求不漏报选ClassWeight。',
+    indent_first=True)
 
 add_para(c8, '')
-add_para(c8, '图2  ROC曲线对比（三种策略）', bold=False, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+# 图2 热力图
+add_para(c8, '图2  分类指标热力图（Precision / Recall / F1，两类别 × 三模型）',
+         bold=False, align=WD_ALIGN_PARAGRAPH.CENTER)
+if os.path.exists(IMG_HEATMAP):
+    add_img(c8, IMG_HEATMAP, width_cm=15)
+add_para(c8,
+    '热力图以颜色深浅直观展示各模型在正负两个类别上的 Precision、Recall、F1 分布。'
+    '负类（未订阅 No）的三项指标均接近0.90以上（绿色），说明模型对多数类预测准确；'
+    '正类（已订阅 Yes）的 Precision 偏低（0.43~0.54，黄色区域），体现了不平衡数据下的固有限制。'
+    '三个模型的 macro avg 行（正负类均等权重）反映了整体均衡能力：SMOTE在F1上最优（0.800）。',
+    indent_first=True)
+
+add_para(c8, '')
+
+# 图3 混淆矩阵
+add_para(c8, '图3  混淆矩阵对比（三种不平衡处理策略）',
+         bold=False, align=WD_ALIGN_PARAGRAPH.CENTER)
+if os.path.exists(IMG_CM):
+    add_img(c8, IMG_CM, width_cm=15)
+add_para(c8,
+    '混淆矩阵直观展示了四类预测结果：TN（真负，正确预测未订阅）、FP（误报，将未订阅预测为订阅）、'
+    'FN（漏报，将订阅预测为未订阅）、TP（真正，正确预测订阅）。'
+    'SMOTE策略 FP最小（661，误报率9.0%），漏报FN=162；'
+    'ClassWeight策略 FN最小（50，漏报率5.4%），但FP=1168（误报率16.0%）。'
+    '银行业务中漏报（错失真实客户）的代价通常高于误报（多打一次电话），'
+    '因此ClassWeight策略在实际营销场景中更具价值。',
+    indent_first=True)
+
+add_para(c8, '')
+
+# 图4 ROC 曲线
+add_para(c8, '图4  ROC曲线对比（三种策略）',
+         bold=False, align=WD_ALIGN_PARAGRAPH.CENTER)
 if os.path.exists(IMG_ROC):
     add_img(c8, IMG_ROC, width_cm=12)
-add_para(c8, '三条ROC曲线均高度贴近左上角（理想分类器），AUC差异仅0.0015（0.9488~0.9503），说明在整体排序能力上三种策略几乎一致，三条曲线均远高于对角线（随机分类器，AUC=0.5）基准。', indent_first=True)
+add_para(c8,
+    '三条ROC曲线均高度贴近左上角（理想分类器位置），AUC差异仅0.0015（0.9488~0.9503），'
+    '说明三种策略在整体排序能力上高度一致，远优于随机分类器基准（对角虚线，AUC=0.5）。'
+    'AUC作为阈值无关指标，综合衡量了模型在所有可能决策阈值下对正负样本的排序能力，'
+    '其值越接近1.0说明模型区分能力越强。',
+    indent_first=True)
 
 # 4.5 结论
 add_sub(c8, '4.5 实验结论')

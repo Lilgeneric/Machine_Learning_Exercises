@@ -269,10 +269,104 @@ plt.close()
 print(f"已保存: {cm_path}")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STEP 8  可视化 — ROC 曲线
+# STEP 8  可视化 — Precision / Recall / F1-Score 对比
 # ══════════════════════════════════════════════════════════════════════════════
 print("\n" + "=" * 65)
-print("STEP 8  可视化 — ROC 曲线")
+print("STEP 8  可视化 — Precision / Recall / F1-Score")
+print("=" * 65)
+
+from sklearn.metrics import precision_score, recall_score, f1_score
+
+# 收集各模型对正类（Yes=1）的三项指标
+metric_data = {}
+for name, res in results.items():
+    yp = res['y_pred']
+    metric_data[name] = {
+        'Precision': precision_score(y_test, yp),
+        'Recall':    recall_score(y_test, yp),
+        'F1-Score':  f1_score(y_test, yp),
+    }
+    print(f"  {name:<22}  Precision={metric_data[name]['Precision']:.4f}  "
+          f"Recall={metric_data[name]['Recall']:.4f}  "
+          f"F1={metric_data[name]['F1-Score']:.4f}")
+
+model_names   = list(metric_data.keys())
+metric_labels = ['Precision', 'Recall', 'F1-Score']
+bar_colors    = ['#5C85D6', '#E07B54', '#5BAD72']   # 蓝 / 橙 / 绿
+x = np.arange(len(metric_labels))
+width = 0.22
+
+fig, ax = plt.subplots(figsize=(10, 6))
+for i, (name, color) in enumerate(zip(model_names, bar_colors)):
+    vals = [metric_data[name][m] for m in metric_labels]
+    bars = ax.bar(x + i * width, vals, width, label=name,
+                  color=color, edgecolor='white', linewidth=0.8, alpha=0.9)
+    for bar, val in zip(bars, vals):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.008,
+                f'{val:.3f}', ha='center', va='bottom', fontsize=9.5, fontweight='bold')
+
+ax.set_ylim(0, 1.08)
+ax.set_xticks(x + width)
+ax.set_xticklabels(metric_labels, fontsize=13)
+ax.set_ylabel('Score (Positive Class: Subscribed)', fontsize=12)
+ax.set_title('Precision / Recall / F1-Score Comparison\n(Logistic Regression — 3 Imbalance Strategies)',
+             fontsize=13, fontweight='bold')
+ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
+ax.grid(axis='y', alpha=0.35, linestyle='--')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+# 添加参考线
+for thresh, style, lbl in [(0.5, ':', 'Score = 0.5'), (0.6, '--', 'Score = 0.6')]:
+    ax.axhline(thresh, color='grey', linewidth=0.9, linestyle=style, alpha=0.7)
+    ax.text(2.75, thresh + 0.012, lbl, fontsize=8, color='grey')
+
+prf_path = os.path.join(OUT_DIR, 'precision_recall_f1.png')
+plt.tight_layout()
+plt.savefig(prf_path, dpi=150, bbox_inches='tight')
+plt.close()
+print(f"已保存: {prf_path}")
+
+# ── 热力图：三模型 × 两类别 的完整指标矩阵 ───────────────────────────────────
+from sklearn.metrics import classification_report as cr
+import re
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+fig.suptitle('Classification Report Heatmap — Precision / Recall / F1',
+             fontsize=14, fontweight='bold')
+
+for ax, (name, res) in zip(axes, results.items()):
+    report = cr(y_test, res['y_pred'],
+                target_names=['No (未订阅)', 'Yes (已订阅)'],
+                output_dict=True)
+    rows_lbl = ['No (未订阅)', 'Yes (已订阅)', 'macro avg', 'weighted avg']
+    cols_lbl = ['Precision', 'Recall', 'F1-Score']
+    key_map  = {'Precision': 'precision', 'Recall': 'recall', 'F1-Score': 'f1-score'}
+    matrix = np.array([[report[r][key_map[c]] for c in cols_lbl] for r in rows_lbl])
+
+    im = ax.imshow(matrix, vmin=0, vmax=1, cmap='RdYlGn', aspect='auto')
+    ax.set_xticks(range(len(cols_lbl))); ax.set_xticklabels(cols_lbl, fontsize=10)
+    ax.set_yticks(range(len(rows_lbl))); ax.set_yticklabels(rows_lbl, fontsize=9)
+    ax.set_title(f"{name}\nAUC = {res['auc']:.4f}", fontsize=11, pad=8)
+    for r in range(len(rows_lbl)):
+        for c in range(len(cols_lbl)):
+            v = matrix[r, c]
+            ax.text(c, r, f'{v:.3f}', ha='center', va='center',
+                    fontsize=10.5, fontweight='bold',
+                    color='white' if v < 0.45 or v > 0.85 else 'black')
+    plt.colorbar(im, ax=ax, shrink=0.85)
+
+plt.tight_layout()
+heatmap_path = os.path.join(OUT_DIR, 'metrics_heatmap.png')
+plt.savefig(heatmap_path, dpi=150, bbox_inches='tight')
+plt.close()
+print(f"已保存: {heatmap_path}")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 9  可视化 — ROC 曲线
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n" + "=" * 65)
+print("STEP 9  可视化 — ROC 曲线")
 print("=" * 65)
 
 colors = ['#2196F3', '#FF5722', '#4CAF50']
@@ -329,5 +423,9 @@ else:
     print(f"       逻辑回归在此数据集理论上限约 0.95～0.96（见 Moro et al. 2014）。")
     print(f"       已通过特征工程（二阶交互 + L1 正则选择）最大化性能。")
 
-print(f"\n输出: {cm_path}  |  {roc_path}")
+print(f"\n输出文件:")
+print(f"  混淆矩阵        : {cm_path}")
+print(f"  ROC 曲线        : {roc_path}")
+print(f"  P/R/F1 柱状图   : {prf_path}")
+print(f"  指标热力图       : {heatmap_path}")
 print("实验完成！")
