@@ -28,6 +28,7 @@ from modeling      import train_all_models
 from evaluation    import (
     evaluate_all,
     print_classification,
+    plot_metrics_bar,
     plot_confusion_matrices,
     plot_roc_curves,
     print_summary,
@@ -71,6 +72,7 @@ def main():
 
     # ── Step 8: 可视化 ────────────────────────────────────────────────────────
     print("\n[Step 8] 可视化")
+    plot_metrics_bar(results)
     plot_confusion_matrices(results, y_test)
     plot_roc_curves(results)
 
