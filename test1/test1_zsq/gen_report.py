@@ -8,6 +8,7 @@ from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from lxml import etree
 
 DOCX_TEMPLATE = os.path.join(os.path.dirname(__file__),
                               '..', 'test1_gxr', 'test1_Experiment_Report_v2.docx')
@@ -19,29 +20,41 @@ OUT_PATH = os.path.join(os.path.dirname(__file__), 'test1_Experiment_Report.docx
 doc   = Document(DOCX_TEMPLATE)
 table = doc.tables[0]
 
+# ── 颜色常量 ──────────────────────────────────────────────────────────────────
+COLOR_CODE    = RGBColor(0x1a, 0x53, 0x76)   # 深蓝 - 代码
+COLOR_FORMULA = RGBColor(0x7B, 0x00, 0x1A)   # 深红 - 公式
+SHADE_HEADER  = 'BDD7EE'                      # 表头背景色（淡蓝）
+SHADE_NOTE    = 'F2F2F2'                      # 备注行背景色（浅灰）
+
 # ── 辅助函数 ──────────────────────────────────────────────────────────────────
-def fmt_run(run, name='宋体', size=12, bold=False, color=None, code=False):
+def fmt_run(run, name='宋体', size=12, bold=False, color=None, code=False, italic=False):
     fn = 'Courier New' if code else name
     run.font.name = fn
     run.font.size = Pt(size)
     run.font.bold = bold
+    run.font.italic = italic
     if color:
-        run.font.color.rgb = RGBColor(*color)
+        if isinstance(color, RGBColor):
+            run.font.color.rgb = color
+        else:
+            run.font.color.rgb = RGBColor(*color)
     rPr = run._r.get_or_add_rPr()
     rFonts = OxmlElement('w:rFonts')
     rFonts.set(qn('w:eastAsia'), name)
     rPr.insert(0, rFonts)
+
 
 def cell_clear(cell):
     for p in cell.paragraphs[1:]:
         p._element.getparent().remove(p._element)
     cell.paragraphs[0].clear()
 
+
 def add_para(cell, text, bold=False, code=False, indent_first=False,
-             align=WD_ALIGN_PARAGRAPH.LEFT, space_after=2):
+             align=WD_ALIGN_PARAGRAPH.LEFT, space_after=2, space_before=0):
     p = cell.add_paragraph()
     pf = p.paragraph_format
-    pf.space_before = Pt(0)
+    pf.space_before = Pt(space_before)
     pf.space_after  = Pt(space_after)
     pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
     if indent_first:
@@ -49,61 +62,153 @@ def add_para(cell, text, bold=False, code=False, indent_first=False,
     p.alignment = align
     run = p.add_run(text)
     fmt_run(run, bold=bold, size=12, code=code,
-            color=(0x1a, 0x53, 0x76) if code else None)
+            color=COLOR_CODE if code else None)
     return p
 
-def add_sub(cell, text):
+
+def add_sub(cell, text, space_before=6):
+    """小节标题（加粗，上方有间距）"""
     p = cell.add_paragraph()
     pf = p.paragraph_format
-    pf.space_before = Pt(5)
-    pf.space_after  = Pt(1)
+    pf.space_before = Pt(space_before)
+    pf.space_after  = Pt(2)
     pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
     run = p.add_run(text)
     fmt_run(run, bold=True, size=12)
     return p
 
+
 def add_code(cell, text):
+    """代码块行（Courier New, 深蓝色, 小字号）"""
     p = cell.add_paragraph()
     pf = p.paragraph_format
     pf.space_before = Pt(0)
     pf.space_after  = Pt(0)
-    pf.left_indent  = Cm(0.5)
+    pf.left_indent  = Cm(0.6)
     pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
     run = p.add_run(text)
-    fmt_run(run, code=True, size=9, color=(0x1a, 0x53, 0x76))
+    fmt_run(run, code=True, size=9, color=COLOR_CODE)
     return p
 
-def add_img(cell, path, width_cm=14):
+
+def add_formula(cell, text, note=None):
+    """数学公式行（居中，深红色斜体）"""
+    p = cell.add_paragraph()
+    pf = p.paragraph_format
+    pf.space_before = Pt(2)
+    pf.space_after  = Pt(2)
+    pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    pf.left_indent = Cm(1.5)
+    run = p.add_run(text)
+    fmt_run(run, name='Times New Roman', size=11, italic=True, bold=False,
+            color=COLOR_FORMULA)
+    if note:
+        run2 = p.add_run('  ' + note)
+        fmt_run(run2, size=10, color=RGBColor(0x60, 0x60, 0x60))
+    return p
+
+
+def add_img(cell, path, width_cm=14, caption=None):
     p = cell.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(4)
+    p.paragraph_format.space_after  = Pt(4)
     run = p.add_run()
     run.add_picture(path, width=Cm(width_cm))
     return p
 
-def build_table(cell, headers, rows, note=None):
-    t = cell.add_table(rows=1 + len(rows) + (1 if note else 0),
-                       cols=len(headers))
+
+def _set_cell_bg(cell, hex_color):
+    """设置单元格背景色"""
+    tc   = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    shd  = OxmlElement('w:shd')
+    shd.set(qn('w:val'),   'clear')
+    shd.set(qn('w:color'), 'auto')
+    shd.set(qn('w:fill'),  hex_color)
+    tcPr.append(shd)
+
+
+def _set_table_borders(tbl):
+    """为表格添加单线边框（所有内外边框）"""
+    tblPr = tbl._tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl._tbl.insert(0, tblPr)
+
+    tblBorders = OxmlElement('w:tblBorders')
+    for side in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+        border = OxmlElement(f'w:{side}')
+        border.set(qn('w:val'),   'single')
+        border.set(qn('w:sz'),    '4')
+        border.set(qn('w:space'), '0')
+        border.set(qn('w:color'), '4472C4')   # 蓝色边框
+        tblBorders.append(border)
+    tblPr.append(tblBorders)
+
+
+def _set_col_widths(tbl, widths_cm):
+    """设置表格各列宽度"""
+    for row in tbl.rows:
+        for ci, cell in enumerate(row.cells):
+            if ci < len(widths_cm):
+                tc = cell._tc
+                tcPr = tc.get_or_add_tcPr()
+                tcW = OxmlElement('w:tcW')
+                tcW.set(qn('w:w'), str(int(widths_cm[ci] * 567)))  # cm → twips (≈567)
+                tcW.set(qn('w:type'), 'dxa')
+                tcPr.append(tcW)
+
+
+def build_table(cell, headers, rows, note=None, col_widths=None):
+    """构建带边框、表头底色的表格"""
+    n_rows = 1 + len(rows) + (1 if note else 0)
+    t = cell.add_table(rows=n_rows, cols=len(headers))
+    _set_table_borders(t)
+
+    # ── 表头行 ────────────────────────────────────────────────────────────────
     for ci, h in enumerate(headers):
         c = t.rows[0].cells[ci]
+        _set_cell_bg(c, SHADE_HEADER)
         c.paragraphs[0].clear()
         r = c.paragraphs[0].add_run(h)
         fmt_run(r, bold=True, size=10)
         c.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        c.paragraphs[0].paragraph_format.space_before = Pt(1)
+        c.paragraphs[0].paragraph_format.space_after  = Pt(1)
+
+    # ── 数据行 ────────────────────────────────────────────────────────────────
     for ri, rd in enumerate(rows):
+        bg = 'FFFFFF' if ri % 2 == 0 else 'EBF3FB'   # 交替行颜色
         for ci, val in enumerate(rd):
             c = t.rows[ri + 1].cells[ci]
+            _set_cell_bg(c, bg)
             c.paragraphs[0].clear()
             r = c.paragraphs[0].add_run(str(val))
             fmt_run(r, size=10)
             c.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            c.paragraphs[0].paragraph_format.space_before = Pt(1)
+            c.paragraphs[0].paragraph_format.space_after  = Pt(1)
+
+    # ── 备注行（跨列合并）────────────────────────────────────────────────────
     if note:
         nr = t.rows[-1]
+        for ci in range(len(headers)):
+            _set_cell_bg(nr.cells[ci], SHADE_NOTE)
         nr.cells[0].paragraphs[0].clear()
         r = nr.cells[0].paragraphs[0].add_run(note)
-        fmt_run(r, size=9)
+        fmt_run(r, size=9, color=RGBColor(0x60, 0x60, 0x60))
+        nr.cells[0].paragraphs[0].paragraph_format.space_before = Pt(1)
+        nr.cells[0].paragraphs[0].paragraph_format.space_after  = Pt(1)
         for i in range(1, len(headers)):
             nr.cells[0].merge(nr.cells[i])
+
+    # ── 列宽 ──────────────────────────────────────────────────────────────────
+    if col_widths:
+        _set_col_widths(t, col_widths)
+
     return t
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 封面
@@ -144,7 +249,7 @@ for g in [
     '2. 掌握工程化的端到端机器学习流程：从数据探索、预处理、多轮迭代特征工程，到超参数调优、多维评估，以 6 个解耦模块（config / preprocessing / imbalance / modeling / evaluation / main）构建可维护的项目结构；',
     '3. 深入理解类别不平衡问题的危害与应对策略：对比 SMOTE 过采样、随机欠采样、损失权重调节三种方案，理解其在 Precision-Recall 权衡上的本质差异，能根据业务需求（控误报 vs. 控漏报）进行合理选择；',
     '4. 掌握 GridSearchCV + K 折分层交叉验证的超参数调优方法，理解为何在不平衡数据集上必须以 roc_auc 而非 accuracy 作为评分指标；',
-    '5. 理解并会计算类别不平衡场景下的核心评估指标：Precision（准确率）、Recall（召回率）、F1-Score（调和平均）、ROC-AUC（排序能力），并能从混淆矩阵中解读 FP（误报）与 FN（漏报）的业务含义；',
+    '5. 理解并会计算类别不平衡场景下的核心评估指标：Precision（精确率）、Recall（召回率）、F1-Score（调和平均）、ROC-AUC（排序能力），并能从混淆矩阵中解读 FP（误报）与 FN（漏报）的业务含义；',
     '6. 通过四轮迭代特征工程（基础 OHE → 衍生特征 → 多项式交互 → QuantileTransformer 归一化），记录 AUC 的完整提升路径，深刻理解"特征质量决定线性模型性能上限"的核心工程原则；',
     '7. 理解逻辑回归在结构化数据集上的性能边界：通过与 GradientBoosting 的对比实验，认识到线性模型在面对非线性决策边界时的固有局限，并了解突破该局限所需的模型改进方向。',
 ]:
@@ -173,7 +278,8 @@ build_table(c6,
         ['modeling.py',      'GridSearchCV + StratifiedKFold 超参数搜索，返回最优模型'],
         ['evaluation.py',    '测试集推断、分类报告打印、混淆矩阵与 ROC 曲线绘图、AUC 汇总'],
         ['main.py',          '主执行入口，串联上述 5 个模块的完整流水线'],
-    ]
+    ],
+    col_widths=[3.5, 12.5]
 )
 add_para(c6, '')
 
@@ -196,7 +302,40 @@ c7 = table.rows[7].cells[0]
 cell_clear(c7)
 add_para(c7, '三、实验过程或算法', bold=True)
 
-# 3.1 数据预处理
+# ── 3.0 逻辑回归数学原理 ─────────────────────────────────────────────────────
+add_sub(c7, '3.0 逻辑回归数学原理')
+
+add_para(c7, '（1）Sigmoid 函数与预测概率', bold=True)
+add_para(c7, '逻辑回归将线性函数的输出通过 Sigmoid 函数映射为 [0,1] 范围内的概率值，以衡量样本属于正类的可能性：', indent_first=True)
+add_formula(c7, 'P(y=1 | x) = σ(wᵀx + b) = 1 / (1 + exp(−(wᵀx + b)))')
+add_para(c7, '其中 w 为权重向量，b 为偏置，x 为特征向量。当 P > 0.5 时预测为正类（订阅），否则为负类（不订阅）。', indent_first=True)
+
+add_para(c7, '（2）对数似然损失函数（Log Loss）', bold=True)
+add_para(c7, '逻辑回归通过最大化对数似然（等价于最小化交叉熵损失）来训练模型：', indent_first=True)
+add_formula(c7,
+    'L(w, b) = −(1/n) Σᵢ [ yᵢ · log(pᵢ) + (1 − yᵢ) · log(1 − pᵢ) ]',
+    '（pᵢ = σ(wᵀxᵢ + b)）')
+add_para(c7, '该函数对"自信但错误"的预测施以更大惩罚，使模型在不平衡数据中倾向于多数类——这正是类别不平衡需要专门处理的根源。', indent_first=True)
+
+add_para(c7, '（3）正则化目标函数', bold=True)
+add_para(c7, '为防止高维特征（495 维）过拟合，在损失函数中加入正则化惩罚项，sklearn 中以参数 C（正则化强度倒数）控制：', indent_first=True)
+add_formula(c7,
+    'J(w) = L(w, b) + (1/C) · Ω(w)',
+    '（C 越小，正则化越强）')
+add_para(c7, 'L1 正则化（penalty=\'l1\'）：Ω(w) = ||w||₁ = Σ|wᵢ|，产生稀疏解，将不相关特征权重精确压缩为 0，适合 495 维高维场景；L2 正则化（penalty=\'l2\'）：Ω(w) = ||w||₂² = Σwᵢ²，均匀收缩所有权重，适合特征高度相关场景。', indent_first=True)
+add_formula(c7,
+    'L1: Ω(w) = Σᵢ |wᵢ|   （稀疏解，等价于自动特征选择）')
+add_formula(c7,
+    'L2: Ω(w) = Σᵢ wᵢ²     （均匀压缩，保留全部特征）')
+
+add_para(c7, '（4）ROC-AUC 评估原理', bold=True)
+add_para(c7, 'ROC 曲线横轴为假阳率 FPR = FP/(FP+TN)，纵轴为真阳率 TPR = TP/(TP+FN)，曲线下面积 AUC 的概率含义为：', indent_first=True)
+add_formula(c7,
+    'AUC = P(score(x⁺) > score(x⁻))',
+    '（随机抽取一正一负样本，模型给正样本打更高分的概率）')
+add_para(c7, 'AUC=1.0 表示完美区分；AUC=0.5 等同随机猜测。AUC 是阈值无关的整体排序能力度量，完全不受类别不平衡影响，因此在本实验中作为首要优化目标和 GridSearchCV 评分指标。', indent_first=True)
+
+# ── 3.1 数据预处理 ───────────────────────────────────────────────────────────
 add_sub(c7, '3.1 数据预处理')
 
 add_para(c7, '（1）unknown 缺失值处理', bold=True)
@@ -220,50 +359,49 @@ add_code(c7, "qt = QuantileTransformer(output_distribution='normal', n_quantiles
 add_code(c7, "X_train_sc = qt.fit_transform(X_train)  # fit 仅训练集，防泄露")
 add_code(c7, "X_test_sc  = qt.transform(X_test)")
 
-# 3.2 特征工程
+# ── 3.2 特征工程 ─────────────────────────────────────────────────────────────
 add_sub(c7, '3.2 特征工程（四轮迭代）')
 add_para(c7, '特征工程是本实验 AUC 从 0.9440 提升至 0.9520 的核心驱动力，历经四轮迭代，每轮均记录了 AUC 的变化。', indent_first=True)
 
 add_para(c7, '【第一轮】基础版本（AUC ≈ 0.9440）', bold=True)
 add_para(c7, '仅完成 One-Hot + StandardScaler，直接使用原始 58 维特征训练 LR。模型已具备基础分类能力，但 StandardScaler 无法消除 duration（最大值 4918s，强右偏）和 euribor3m 等偏斜分布，梯度不稳定，且模型面对特征间的非线性关系无能为力，AUC 停留在 0.9440。', indent_first=True)
 
-add_para(c7, '【第二轮】衍生特征工程（AUC ≈ 0.9478）', bold=True)
-add_para(c7, '新增 4 个手工衍生特征，将 AUC 提升约 +0.0038：', indent_first=True)
+add_para(c7, '【第二轮】衍生特征工程（AUC ≈ 0.9478，+0.0038）', bold=True)
+add_para(c7, '新增 4 个手工衍生特征：', indent_first=True)
 add_para(c7, 'pdays_contacted（二值指示符）：pdays=999 是数据集的特殊编码，表示"本次活动前从未联系过客户"，96.3% 的样本为此状态。将其提取为独立二值特征，同时将 pdays=999 替换为 0，消除该极大值对标准化的干扰。', indent_first=True)
 add_code(c7, "df['pdays_contacted'] = (df['pdays'] != 999).astype(int)")
 add_code(c7, "df['pdays'] = df['pdays'].replace(999, 0)")
 add_para(c7, 'duration_log（对数变换）：duration 是最强单特征预测因子（单独 AUC=0.818），但呈强正偏态。log(1+x) 将分布压缩为近似正态，使 LR 能更稳定地拟合该非线性效应。', indent_first=True)
+add_formula(c7, 'duration_log = log(1 + duration)')
 add_code(c7, "df['duration_log'] = np.log1p(df['duration'])")
 add_para(c7, 'econ_pressure（经济压力指标）：emp.var.rate × euribor3m 的乘积捕获就业变动率与利率的联合效应——利率高且就业不稳定时，人们更倾向于储蓄定期存款。', indent_first=True)
+add_formula(c7, 'econ_pressure = emp.var.rate × euribor3m')
 add_para(c7, 'prev_success（历史成功标志）：poutcome==\'success\' 的二值化，是最强的正类预测信号之一（历史上曾成功说服客户订阅的客户再次成功率显著更高）。', indent_first=True)
 
-add_para(c7, '【第三轮】多项式特征 + 替换 StandardScaler → QuantileTransformer（AUC ≈ 0.9509）', bold=True)
-add_para(c7, '两个关键改进同步推进：', indent_first=True)
+add_para(c7, '【第三轮】多项式特征 + QuantileTransformer（AUC ≈ 0.9509，+0.0031）', bold=True)
 add_para(c7, '① 归一化升级：以 QuantileTransformer(output_distribution=\'normal\') 替换 StandardScaler。StandardScaler 仅做零均值单位方差变换，无法消除偏态分布；QuantileTransformer 通过分位数映射将每个特征变换为标准正态分布，从根本上消除偏斜，使 L1 正则化的近端梯度算法收敛更快、更稳定。实验验证该替换可带来约 +0.003 AUC 提升。', indent_first=True)
-add_para(c7, '② 首次引入多项式特征（5 个核心特征，78 维）：对 duration_log、emp.var.rate、euribor3m、cons.conf.idx、nr.employed 做 degree=2 全量展开（含平方项），生成 15 个新特征（5 原始 + C(5,2) 交叉 + 5 平方），总维度从 60 升至 75。交叉项捕获"通话时长在经济下行期（高 euribor3m）的效果更佳"等交互效应；平方项捕获单特征的曲率效应（如利率对储蓄意愿的非线性影响）。', indent_first=True)
+add_para(c7, '② 首次引入多项式特征（5 个核心特征，75 维）：对 duration_log、emp.var.rate、euribor3m、cons.conf.idx、nr.employed 做 degree=2 全量展开（含平方项），生成 15 个新特征，总维度从 60 升至 75。', indent_first=True)
 add_code(c7, "poly = PolynomialFeatures(degree=2, interaction_only=False, include_bias=False)")
 add_code(c7, "X_train_poly = poly.fit_transform(X_train_sc[:, poly_idx])")
 add_code(c7, "X_train_final = np.hstack([X_train_sc, X_train_poly])")
 
-add_para(c7, '【第四轮】扩展多项式至 29 列（AUC ≈ 0.9520，最终方案）', bold=True)
-add_para(c7, '将多项式展开的特征集从 5 个扩展至 29 列，在原有 13 个连续型特征基础上，新增 16 列关键 One-Hot 二值特征（poutcome_success、contact_cellular、month_may/nov/oct/mar/sep 等）一并纳入多项式展开。', indent_first=True)
-add_para(c7, '设计依据：① poutcome_success × duration_log 是极强信号（既是老客户又通话时间长，转化率极高）；② contact_cellular × duration 捕获接触渠道与通话质量的交互；③ 月份 dummy 与经济指标的交互捕获季节性经济周期效应（3月/9月/10月是历史高订阅月）。29 个特征的 degree=2 展开生成 435 个新特征项，总维度从 60 升至 495。配合 L1 正则化，模型自动从 495 维中稀疏选出有价值子集。', indent_first=True)
+add_para(c7, '【第四轮】扩展多项式至 29 列（AUC ≈ 0.9520，最终方案，+0.0011）', bold=True)
+add_para(c7, '将多项式展开的特征集从 5 个扩展至 29 列，在原有 13 个连续型特征基础上，新增 16 列关键 One-Hot 二值特征（poutcome_success、contact_cellular、month_may/nov/oct/mar/sep 等）一并纳入多项式展开。设计依据：① poutcome_success × duration_log 是极强信号；② contact_cellular × duration 捕获接触渠道与通话质量的交互；③ 月份 dummy 与经济指标的交互捕获季节性效应。29 个特征的 degree=2 展开生成 435 个新特征项，总维度从 60 升至 495。配合 L1 正则化，模型自动从 495 维中稀疏选出有价值子集。', indent_first=True)
 add_code(c7, "POLY_FEATURES = [")
 add_code(c7, "    'duration', 'duration_log', 'euribor3m', 'nr.employed', 'emp.var.rate',")
 add_code(c7, "    'cons.price.idx', 'cons.conf.idx', 'pdays_contacted', 'econ_pressure',")
 add_code(c7, "    'prev_success', 'previous', 'pdays', 'education',")
 add_code(c7, "    'poutcome_success', 'poutcome_nonexistent', 'contact_cellular',")
 add_code(c7, "    'month_may', 'month_nov', 'month_oct', 'month_mar', 'month_sep',")
-add_code(c7, "    'month_apr', 'month_jun', 'month_jul', 'month_aug', 'month_dec',")
-add_code(c7, "    'job_student', 'job_retired', 'marital_single',")
+add_code(c7, "    'job_student', 'job_retired', 'marital_single', ...")
 add_code(c7, "]  # 共 29 列 → degree=2 展开后 495 维总特征")
 
-# 3.3 不平衡处理
+# ── 3.3 不平衡处理 ───────────────────────────────────────────────────────────
 add_sub(c7, '3.3 类别不平衡处理策略（三种）')
 add_para(c7, '重要原则：所有重采样操作均仅作用于训练集，测试集保持原始分布（11.27% 正样本），确保评估的现实意义和公平性。', indent_first=True)
 
 add_para(c7, '策略 A — SMOTE 过采样（Synthetic Minority Over-sampling Technique）', bold=True)
-add_para(c7, '原理：对少数类每个样本，在其 k=5 个近邻间随机线性插值合成新样本，而非简单复制；新样本位于特征空间中已有少数类样本的"邻域"内，引入多样性同时保留统计分布。参数 sampling_strategy=0.4 将正样本补充至多数类的 40%（约 40,933 条，正样本占比 28.6%）。选择 0.4 而非 1:1 完全平衡，是因为过度合成会引入大量人工噪声样本，实验验证 0.4 时 AUC 最优。', indent_first=True)
+add_para(c7, '原理：对少数类每个样本，在其 k=5 个近邻间随机线性插值合成新样本；新样本位于特征空间中已有少数类样本的"邻域"内，引入多样性同时保留统计分布。参数 sampling_strategy=0.4 将正样本补充至多数类的 40%（约 40,933 条，正样本占比 28.6%）。选择 0.4 而非 1:1 完全平衡，是因为过度合成会引入大量人工噪声样本，实验验证 0.4 时 AUC 最优。', indent_first=True)
 add_code(c7, "smote = SMOTE(sampling_strategy=0.4, random_state=42, k_neighbors=5)")
 add_code(c7, "X_tr_smote, y_tr_smote = smote.fit_resample(X_train_final, y_train)")
 add_code(c7, "# 输出：(40933, 495)，正样本占比 28.6%")
@@ -275,29 +413,32 @@ add_code(c7, "X_tr_rus, y_tr_rus = rus.fit_resample(X_train_final, y_train)")
 add_code(c7, "# 输出：(7424, 495)，正样本占比 50.0%")
 
 add_para(c7, '策略 C — class_weight=\'balanced\'（损失函数权重调节）', bold=True)
-add_para(c7, '原理：不修改任何样本，通过在交叉熵损失中对每个样本的误分代价加权来补偿不平衡。sklearn 的 balanced 模式自动计算：weight_c = n_samples / (n_classes × count_c)。正样本权重 ≈ 41188/(2×4640) ≈ 4.44，负样本权重 ≈ 41188/(2×36548) ≈ 0.563，即错误预测一个正样本的代价约为负样本的 7.9 倍。全部 32,950 条原始训练数据完整保留，是信息损失最小的策略。', indent_first=True)
+add_para(c7, '原理：不修改任何样本，通过在交叉熵损失中对每个样本的误分代价加权来补偿不平衡。sklearn 的 balanced 模式自动计算各类权重：', indent_first=True)
+add_formula(c7,
+    'weight_c = n_samples / (n_classes × count_c)',
+    '（正样本权重 ≈ 4.44，负样本权重 ≈ 0.56）')
+add_para(c7, '全部 32,950 条原始训练数据完整保留，是信息损失最小的策略。', indent_first=True)
 add_code(c7, "model = LogisticRegression(class_weight='balanced',")
 add_code(c7, "                           C=0.005, penalty='l1', solver='liblinear',")
 add_code(c7, "                           max_iter=3000, random_state=42)")
 
-# 3.4 超参数调优
+# ── 3.4 超参数调优 ───────────────────────────────────────────────────────────
 add_sub(c7, '3.4 超参数调优（GridSearchCV + 3-Fold Stratified CV）')
 add_para(c7, '参数网格设计（共 8 种参数组合 × 3 折 = 24 次拟合/策略）：', indent_first=True)
 add_code(c7, "PARAM_GRID = [")
-add_code(c7, "    {'penalty':['l1'], 'C':[0.005,0.01,0.02,0.05],")
+add_code(c7, "    {'penalty':['l1'], 'C':[0.005, 0.01, 0.02, 0.05],")
 add_code(c7, "     'solver':['liblinear'], 'max_iter':[3000]},")
-add_code(c7, "    {'penalty':['l2'], 'C':[0.005,0.01,0.02,0.05],")
+add_code(c7, "    {'penalty':['l2'], 'C':[0.005, 0.01, 0.02, 0.05],")
 add_code(c7, "     'solver':['lbfgs'], 'max_iter':[3000]},")
 add_code(c7, "]")
-add_para(c7, '核心参数深度解析：', indent_first=True)
-add_para(c7, 'C（正则化强度倒数）：LR 的目标函数为 min (1/C)·||w||_p + Σlog(1+exp(-y_i·wᵀx_i))。C 越小，正则化惩罚越大，权重越趋近零，模型越简单。在 495 维高维特征空间中，过大的 C 会导致严重过拟合，实验验证最优 C 集中在 0.005~0.05 的强正则化区间。', indent_first=True)
-add_para(c7, 'penalty（正则化类型）：L1 惩罚 Σ|w_i|，产生稀疏解，将无关特征权重精确压缩为 0，等效于自动特征选择，在 495 维高维场景中避免噪声特征干扰；L2 惩罚 Σw_i²，均匀压缩所有权重，不产生稀疏解，适合特征高度相关（宏观经济指标间高度共线）的场景。', indent_first=True)
-add_para(c7, '选用 roc_auc 评分的必要性：若以 accuracy 作为 CV 评分，将全部样本预测为"未订阅"可获得 88.7% 的准确率，GridSearch 可能错误地选出偏向多数类的参数。roc_auc 是阈值无关的排序指标，度量模型对正负样本的整体区分能力，完全不受类别不平衡的影响。', indent_first=True)
+add_para(c7, 'C（正则化强度倒数）：LR 目标函数 min (1/C)·||w||_p + L(w)。C 越小，正则化越强，模型越简单。在 495 维高维空间中，实验验证最优 C 集中在 0.005~0.05 的强正则化区间。', indent_first=True)
+add_para(c7, 'penalty（正则化类型）：L1 惩罚 Σ|wᵢ| 产生稀疏解（等效自动特征选择）；L2 惩罚 Σwᵢ² 均匀压缩所有权重，适合高度相关特征（宏观经济指标间高共线性）。', indent_first=True)
+add_para(c7, '选用 roc_auc 评分的必要性：若以 accuracy 作为 CV 评分，将全部样本预测为"未订阅"可获得 88.7% 的准确率，GridSearch 可能错误地选出偏向多数类的参数。roc_auc 是阈值无关的排序指标，完全不受类别不平衡的影响。', indent_first=True)
 add_code(c7, "cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)")
 add_code(c7, "gs = GridSearchCV(LogisticRegression(random_state=42),")
 add_code(c7, "                  PARAM_GRID, cv=cv, scoring='roc_auc',")
 add_code(c7, "                  n_jobs=-1, refit=True)")
-add_code(c7, "gs.fit(X_tr, y_tr)  # refit=True: 搜索完毕后在最优参数下对全训练集重训练")
+add_code(c7, "gs.fit(X_tr, y_tr)  # refit=True: 在最优参数下对全训练集重训练")
 add_code(c7, "best_model = gs.best_estimator_")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -307,12 +448,12 @@ c8 = table.rows[8].cells[0]
 cell_clear(c8)
 add_para(c8, '四、实验结果及分析', bold=True)
 
-# 4.1 AUC 迭代
+# ── 4.1 AUC 迭代 ─────────────────────────────────────────────────────────────
 add_sub(c8, '4.1 AUC 优化迭代路径（四轮，完整记录）')
 add_para(c8, '本实验经过四轮迭代优化，AUC 从初始 0.9440 逐步提升至最终 0.9520，共提升 0.0080。以下表格记录完整优化路径，每轮均对三种不平衡策略分别评估：', indent_first=True)
 add_para(c8, '')
 build_table(c8,
-    headers=['迭代版本', '核心改进', '特征维度', 'SMOTE-AUC', 'RUS-AUC', 'CW-AUC', 'AUC提升'],
+    headers=['迭代版本', '核心改进措施', '特征维度', 'SMOTE\nAUC', 'RUS\nAUC', 'CW\nAUC', 'AUC 提升'],
     rows=[
         ['迭代1（基础版）',
          'OHE + StandardScaler，无衍生特征',
@@ -320,19 +461,20 @@ build_table(c8,
         ['迭代2（衍生特征）',
          '+pdays_contacted, +duration_log\n+econ_pressure, +prev_success',
          '62', '0.9478', '0.9470', '0.9478', '+0.0038'],
-        ['迭代3（QT+小多项式）',
+        ['迭代3（QT+多项式）',
          'StandardScaler→QuantileTransformer\n+degree-2 on 5核心特征',
          '75', '0.9507', '0.9487', '0.9509', '+0.0031'],
         ['迭代4（最终版）',
-         '+degree-2 on 29列（含关键OHE）\nL1自动稀疏特征选择',
+         '+degree-2 on 29列（含关键OHE）\nL1 自动稀疏特征选择',
          '495', '0.9500', '0.9502', '0.9520', '+0.0011'],
     ],
-    note='注：QT=QuantileTransformer；RUS=RandomUnderSampler；CW=class_weight=balanced；迭代3的SMOTE数据集从40933→40933维度更大但AUC略优于迭代2。'
+    note='注：QT=QuantileTransformer；RUS=RandomUnderSampler；CW=class_weight=balanced。',
+    col_widths=[2.8, 5.0, 2.0, 1.7, 1.7, 1.7, 1.8]
 )
 add_para(c8, '')
-add_para(c8, '优化路径分析：迭代2的衍生特征工程贡献最大（+0.0038），核心原因是 pdays_contacted 二值化消除了 999 大数值对标准化的干扰，duration_log 对数变换使最强预测因子的分布更适合 LR 拟合，econ_pressure 乘积项引入了手工交互信息；迭代3的 QuantileTransformer 升级贡献了 +0.0031，从根本上解决了偏斜分布问题；迭代4进一步将交互特征扩展到 OHE 列，贡献 +0.0011。', indent_first=True)
+add_para(c8, '优化路径分析：迭代2的衍生特征贡献最大（+0.0038），核心原因是 pdays_contacted 二值化消除了 999 大数值对标准化的干扰，duration_log 对数变换使最强预测因子的分布更适合 LR 拟合，econ_pressure 乘积项引入了手工交互信息；迭代3的 QuantileTransformer 升级贡献了 +0.0031，从根本上解决了偏斜分布问题；迭代4扩展交互特征到 OHE 列，贡献 +0.0011，逼近 LR 的理论上限。', indent_first=True)
 
-# 4.2 最终结果
+# ── 4.2 最终结果 ─────────────────────────────────────────────────────────────
 add_sub(c8, '4.2 最终三模型完整性能对比（测试集，n=8,238）')
 add_para(c8,
     '以下表格汇总 classification_report 中正类（订阅=1）的核心指标。'
@@ -341,36 +483,39 @@ add_para(c8,
     indent_first=True)
 add_para(c8, '')
 build_table(c8,
-    headers=['策略', 'Precision(1)', 'Recall(1)', 'F1-Score(1)', 'Accuracy', 'AUC', 'TN/FP/FN/TP', '最优参数'],
+    headers=['策略', 'Precision\n(1)', 'Recall\n(1)', 'F1-Score\n(1)', 'Accuracy', 'AUC', 'TN/FP/FN/TP', '最优超参数'],
     rows=[
         ['LR (SMOTE)',       '0.55', '0.81', '0.66', '90.3%', '0.9500', '6725/585/176/752',  'C=0.05, L2'],
         ['LR (UnderSample)', '0.44', '0.93', '0.60', '85.8%', '0.9502', '6214/1096/65/863',  'C=0.01, L1'],
         ['LR (ClassWeight)', '0.44', '0.94', '0.60', '85.6%', '0.9520', '6214/1096/56/872',  'C=0.005, L1'],
     ],
-    note='注：Precision=TP/(TP+FP)；Recall=TP/(TP+FN)；F1=2PR/(P+R)；AUC 阈值无关。'
+    note='注：Precision=TP/(TP+FP)；Recall=TP/(TP+FN)；F1=2PR/(P+R)；AUC 为阈值无关指标。',
+    col_widths=[2.8, 1.6, 1.6, 1.9, 1.8, 1.6, 3.2, 2.5]
 )
 add_para(c8, '')
 
-add_sub(c8, '4.2.1 classification_report 各指标含义解读')
+add_sub(c8, '4.2.1 各指标含义解读')
 add_para(c8,
     'Precision（精确率）= TP/(TP+FP)：在模型预测为"订阅"的客户中，真正订阅的占比。'
-    'SMOTE 的 Precision=0.55 最高，意味着向银行推荐 100 人中有 55 人是真实意向客户，误打扰 45 人；'
+    'SMOTE 的 Precision=0.55 最高，意味着向银行推荐 100 人中有 55 人是真实意向客户；'
     'ClassWeight/UnderSample 的 Precision=0.44，推荐 100 人中有 44 人是真实意向客户。',
     indent_first=True)
+add_formula(c8, 'Precision = TP / (TP + FP)')
 add_para(c8,
     'Recall（召回率）= TP/(TP+FN)：在全部真实订阅客户中，模型成功识别的比例。'
     'ClassWeight 的 Recall=0.94 最高，意味着每 100 个真实意向客户中能找回 94 个，仅漏掉 6 个；'
     'SMOTE 的 Recall=0.81，每 100 个真实客户中漏掉 19 个。Recall 是银行营销最核心的指标。',
     indent_first=True)
+add_formula(c8, 'Recall = TP / (TP + FN)')
 add_para(c8,
-    'F1-Score = 2·Precision·Recall/(Precision+Recall)：Precision 和 Recall 的调和平均，'
-    '是单一综合性能指标。调和平均的特性使其对两者中较低的值更敏感——'
+    'F1-Score = 2·P·R/(P+R)：Precision 和 Recall 的调和平均，是综合性能单一指标。'
     'SMOTE 的 F1=0.66（P、R 相对平衡），ClassWeight 的 F1=0.60（R 极高但 P 较低）。'
     '若业务同等重视精确率和召回率，选 SMOTE；若更重视召回率，选 ClassWeight。',
     indent_first=True)
+add_formula(c8, 'F1 = 2 · Precision · Recall / (Precision + Recall)')
 add_para(c8, '')
 
-# 4.3 深度分析
+# ── 4.3 深度分析 ─────────────────────────────────────────────────────────────
 add_sub(c8, '4.3 评估指标深度分析')
 
 add_para(c8, '（1）为何 Accuracy 不能作为核心指标', bold=True)
@@ -378,38 +523,36 @@ add_para(c8, '若将所有测试样本预测为"未订阅"，准确率高达 88.
 
 add_para(c8, '（2）三种策略的 Precision-Recall 权衡', bold=True)
 add_para(c8, 'SMOTE（P=0.55, R=0.81）：取得三者中最佳的精确-召回平衡。误报 585 人、漏报 176 人；每向银行推荐 10 位"潜在订阅客户"中有 5.5 位是真实客户，适合希望在触达率和误扰率间取平衡的营销场景。SMOTE 策略的最优 C=0.05 且选择 L2 正则，说明合成样本使数据分布更平滑，对 L2 的均匀惩罚更友好。', indent_first=True)
-add_para(c8, 'UnderSample（P=0.44, R=0.93）：召回率极高，漏报仅 65 人（漏报率 7.0%）；但误报高达 1,096 人，每推荐 10 位中仅 4.4 位是真实客户，会造成大量无意愿客户被骚扰。训练集仅 7,424 条（丢弃了 77.5% 的多数类数据），L1 正则在此稀疏数据上表现更好。', indent_first=True)
+add_para(c8, 'UnderSample（P=0.44, R=0.93）：召回率极高，漏报仅 65 人（漏报率 7.0%）；但误报高达 1,096 人，每推荐 10 位中仅 4.4 位是真实客户。训练集仅 7,424 条（丢弃了 77.5% 的多数类数据），L1 正则在此稀疏数据上表现更好。', indent_first=True)
 add_para(c8, 'ClassWeight（P=0.44, R=0.94）：漏报最少（56人，漏报率 6.0%），且保留全部 32,950 条原始训练数据，AUC=0.9520 是三者最高，是综合性能最优的策略。最优 C=0.005（最强正则化）+ L1（稀疏选择），印证了在 495 维高维空间中，强正则化对防止过拟合至关重要。', indent_first=True)
 
 add_para(c8, '（3）超参数调优发现', bold=True)
-add_para(c8, '三种策略的最优 C 均集中在 0.005~0.05，远小于通常在低维特征集上使用的 C=1，这与 495 维高维特征空间中需要更强正则化以防止过拟合的理论预期完全一致。SMOTE 策略偏向 L2，因为合成样本使特征间相关性增强，L2 的均匀压缩更合适；而 UnderSample 和 ClassWeight 使用原始特征分布，L1 的稀疏选择能有效过滤 495 维中的噪声交互项。', indent_first=True)
+add_para(c8, '三种策略的最优 C 均集中在 0.005~0.05，远小于通常在低维特征集上使用的 C=1，这与 495 维高维特征空间中需要更强正则化的理论预期一致。SMOTE 策略偏向 L2，因为合成样本使特征间相关性增强；而 UnderSample 和 ClassWeight 使用原始特征分布，L1 的稀疏选择能有效过滤 495 维中的噪声交互项。', indent_first=True)
 
 add_para(c8, '（4）与 GradientBoosting 的对比及 LR 性能边界', bold=True)
-add_para(c8, '为验证本实验 LR 方案是否已逼近性能上限，额外运行了 sklearn GradientBoosting（n_estimators=200, learning_rate=0.05, max_depth=4）作为基准对比：GradientBoosting AUC=0.9553，仅比本实验最佳 LR 高出 0.0033。这一结果证实：① 本实验的特征工程方案已使 LR 逼近其理论上限；② 即使是树集成方法，在此数据集上也仅能达到 0.955，数据本身的信息量决定了 AUC 的绝对上限约在 0.96 附近（与 Moro et al. 2014 原始论文一致）；③ 要在 LR 基础上进一步提升，须引入 XGBoost 等可自动学习任意阶非线性交互的梯度提升树模型。', indent_first=True)
+add_para(c8, '为验证本实验 LR 方案是否已逼近性能上限，额外运行了 sklearn GradientBoosting（n_estimators=200, learning_rate=0.05, max_depth=4）作为基准对比：GradientBoosting AUC=0.9553，仅比本实验最佳 LR 高出 0.0033。这一结果证实：① 本实验的特征工程方案已使 LR 逼近其理论上限；② 即使是树集成方法，在此数据集上也仅能达到 0.955，数据本身的信息量决定了 AUC 绝对上限约在 0.96 附近（与 Moro et al. 2014 原始论文一致）；③ 要在 LR 基础上进一步提升，须引入 XGBoost 等可自动学习任意阶非线性交互的梯度提升树模型。', indent_first=True)
 
-# 4.4 可视化
+# ── 4.4 可视化 ───────────────────────────────────────────────────────────────
 add_sub(c8, '4.4 可视化分析')
 
-add_para(c8, '图 1  Precision / Recall / F1-Score 分组柱状图', align=WD_ALIGN_PARAGRAPH.CENTER)
+add_para(c8, '图 1  Precision / Recall / F1-Score 分组柱状图', bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER)
 if os.path.exists(IMG_METRICS):
     add_img(c8, IMG_METRICS, width_cm=16)
 add_para(c8,
-    '左图：四指标分组对比。Accuracy（准确率）三个模型差异最大（86%~90%），但在不平衡数据下参考价值有限——'
-    'SMOTE 的高 Accuracy 源自其较低的误报率，而非对正类更好的识别；'
+    '左图：四指标分组对比。Accuracy（准确率）三个模型差异最大（86%~90%），但在不平衡数据下参考价值有限；'
     'Recall（召回率）差异最显著：SMOTE=0.81 vs ClassWeight=0.94，相差 0.13，直接决定能找回多少真实客户；'
-    'Precision（精确率）SMOTE 最高（0.55），因其误报最少；F1-Score 三者均在 0.60~0.66，'
-    'SMOTE 综合最优（0.66）。',
+    'Precision（精确率）SMOTE 最高（0.55），因其误报最少；F1-Score 三者均在 0.60~0.66，SMOTE 综合最优（0.66）。',
     indent_first=True)
 add_para(c8,
-    '右图：正类 Precision-Recall-F1 水平条形图，直观呈现权衡关系。'
-    'SMOTE 和 ClassWeight/UnderSample 呈现两种截然不同的偏向：'
-    'SMOTE 偏高精确率低召回率（宁可漏报也要减少误报）；'
+    '右图：正类 Precision-Recall-F1 水平条形图，直观呈现权衡关系。SMOTE 偏高精确率低召回率（宁可漏报也要减少误报）；'
     'ClassWeight/UnderSample 偏高召回率低精确率（宁可误报也不漏报任何潜在客户）。'
     '银行业务场景中，漏报成本（FN）通常远高于误报成本（FP），因此 ClassWeight 的高召回策略（0.94）最具业务价值。',
     indent_first=True)
 
 add_para(c8, '')
-add_para(c8, '图 2  混淆矩阵对比（三种不平衡处理策略）', align=WD_ALIGN_PARAGRAPH.CENTER)
+add_para(c8, '图 2  混淆矩阵对比（三种不平衡处理策略）', bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER)
 if os.path.exists(IMG_CM):
     add_img(c8, IMG_CM, width_cm=15)
 add_para(c8,
@@ -421,7 +564,8 @@ add_para(c8,
     indent_first=True)
 
 add_para(c8, '')
-add_para(c8, '图 3  ROC 曲线对比（三种策略）', align=WD_ALIGN_PARAGRAPH.CENTER)
+add_para(c8, '图 3  ROC 曲线对比（三种策略）', bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER)
 if os.path.exists(IMG_ROC):
     add_img(c8, IMG_ROC, width_cm=12)
 add_para(c8,
@@ -432,7 +576,7 @@ add_para(c8,
     '图中红色虚线为 AUC=0.95 参考线，三个模型均达到或超过，逼近 LR 在此数据集的理论上限。',
     indent_first=True)
 
-# 4.5 结论
+# ── 4.5 结论 ─────────────────────────────────────────────────────────────────
 add_sub(c8, '4.5 实验结论')
 for c in [
     '① 特征质量决定线性模型性能上限：通过四轮迭代（基础 OHE→衍生特征→QT 归一化→扩展多项式），AUC 从 0.9440 稳步提升至 0.9520，总提升 0.008，验证了"特征工程是提升 LR 性能最高效手段"的核心工程原则；',
