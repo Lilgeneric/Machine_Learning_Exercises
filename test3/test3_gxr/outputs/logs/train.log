@@ -1,0 +1,119 @@
+[cfg] device=cuda variant=v2 epochs=15 bs=4 lr=0.005 sched=multistep step=[10, 13] gamma=0.1 workers=4 seed=42
+[cfg] device=cuda threads=8 epochs=15 batch=4 lr=0.005 variant=v2
+[cfg] data_root=/home/vla/machine_learning/test3/PennFudanPed
+[data] total=170 train=136 val=34
+[vis] GT 样例已保存: /home/vla/machine_learning/test3/test3_gxr/outputs/figures/gt_samples.png
+[model] fasterrcnn_resnet50_fpn_v2 (COCO) -> 2 classes (bg + pedestrian)
+[model] {'total': 43256153, 'trainable': 43030809, 'frozen': 225344, 'total_M': 43.26, 'trainable_M': 43.03}
+[epoch 0] iter 001/34 loss=0.9973 cls=0.7661 box=0.2137 obj=0.0163 rpn_box=0.0012 lr=0.000156
+[epoch 0] iter 010/34 loss=0.5542 cls=0.2294 box=0.2905 obj=0.0316 rpn_box=0.0026 lr=0.001519
+[epoch 0] iter 020/34 loss=0.5359 cls=0.1908 box=0.3326 obj=0.0102 rpn_box=0.0023 lr=0.003032
+[epoch 0] iter 030/34 loss=0.3008 cls=0.0605 box=0.2211 obj=0.0162 rpn_box=0.0030 lr=0.004546
+[epoch 0] 单 epoch 训练耗时 7.5s
+[eval] total_gt=91 AP@0.5=0.9880 AP@0.5_voc11=0.9817 precision@0.5=0.1085 recall@0.5=1.0000 AP@0.75=0.7923 AP@0.75_voc11=0.7658 precision@0.75=0.0930 recall@0.75=0.8571 mAP@[0.5:0.95]=0.6181
+[ckpt] 新最佳 AP@0.5=0.9880 (epoch 0)
+[epoch 0 完成] avg_loss=0.5219 val_AP@0.5=0.9880 val_mAP=0.6181 time=9.2s elapsed=0.2min
+[epoch 1] iter 001/34 loss=0.2562 cls=0.0471 box=0.2053 obj=0.0012 rpn_box=0.0026 lr=0.005000
+[epoch 1] iter 010/34 loss=0.1950 cls=0.0502 box=0.1357 obj=0.0039 rpn_box=0.0052 lr=0.005000
+[epoch 1] iter 020/34 loss=0.1022 cls=0.0252 box=0.0734 obj=0.0024 rpn_box=0.0013 lr=0.005000
+[epoch 1] iter 030/34 loss=0.1449 cls=0.0436 box=0.0930 obj=0.0028 rpn_box=0.0055 lr=0.005000
+[epoch 1] 单 epoch 训练耗时 7.2s
+[eval] total_gt=91 AP@0.5=0.9828 AP@0.5_voc11=0.9799 precision@0.5=0.5084 recall@0.5=1.0000 AP@0.75=0.9828 AP@0.75_voc11=0.9799 precision@0.75=0.5084 recall@0.75=1.0000 mAP@[0.5:0.95]=0.8331
+[epoch 1 完成] avg_loss=0.1456 val_AP@0.5=0.9828 val_mAP=0.8331 time=8.4s elapsed=0.3min
+[epoch 2] iter 001/34 loss=0.1639 cls=0.0484 box=0.0998 obj=0.0101 rpn_box=0.0056 lr=0.005000
+[epoch 2] iter 010/34 loss=0.0587 cls=0.0186 box=0.0345 obj=0.0050 rpn_box=0.0006 lr=0.005000
+[epoch 2] iter 020/34 loss=0.1062 cls=0.0310 box=0.0717 obj=0.0012 rpn_box=0.0022 lr=0.005000
+[epoch 2] iter 030/34 loss=0.0778 cls=0.0296 box=0.0445 obj=0.0010 rpn_box=0.0026 lr=0.005000
+[epoch 2] 单 epoch 训练耗时 7.1s
+[eval] total_gt=91 AP@0.5=0.9880 AP@0.5_voc11=0.9845 precision@0.5=0.6067 recall@0.5=1.0000 AP@0.75=0.9880 AP@0.75_voc11=0.9845 precision@0.75=0.6067 recall@0.75=1.0000 mAP@[0.5:0.95]=0.8521
+[epoch 2 完成] avg_loss=0.0853 val_AP@0.5=0.9880 val_mAP=0.8521 time=8.3s elapsed=0.4min
+[epoch 3] iter 001/34 loss=0.0662 cls=0.0271 box=0.0369 obj=0.0007 rpn_box=0.0014 lr=0.005000
+[epoch 3] iter 010/34 loss=0.0555 cls=0.0232 box=0.0284 obj=0.0009 rpn_box=0.0030 lr=0.005000
+[epoch 3] iter 020/34 loss=0.0463 cls=0.0116 box=0.0327 obj=0.0004 rpn_box=0.0017 lr=0.005000
+[epoch 3] iter 030/34 loss=0.0533 cls=0.0205 box=0.0313 obj=0.0004 rpn_box=0.0011 lr=0.005000
+[epoch 3] 单 epoch 训练耗时 7.4s
+[eval] total_gt=91 AP@0.5=0.9875 AP@0.5_voc11=0.9815 precision@0.5=0.6791 recall@0.5=1.0000 AP@0.75=0.9875 AP@0.75_voc11=0.9815 precision@0.75=0.6791 recall@0.75=1.0000 mAP@[0.5:0.95]=0.8664
+[epoch 3 完成] avg_loss=0.0682 val_AP@0.5=0.9875 val_mAP=0.8664 time=8.5s elapsed=0.6min
+[epoch 4] iter 001/34 loss=0.0393 cls=0.0119 box=0.0263 obj=0.0003 rpn_box=0.0007 lr=0.005000
+[epoch 4] iter 010/34 loss=0.0742 cls=0.0236 box=0.0455 obj=0.0014 rpn_box=0.0036 lr=0.005000
+[epoch 4] iter 020/34 loss=0.0596 cls=0.0259 box=0.0324 obj=0.0005 rpn_box=0.0007 lr=0.005000
+[epoch 4] iter 030/34 loss=0.0389 cls=0.0215 box=0.0158 obj=0.0011 rpn_box=0.0005 lr=0.005000
+[epoch 4] 单 epoch 训练耗时 7.3s
+[eval] total_gt=91 AP@0.5=0.9883 AP@0.5_voc11=0.9817 precision@0.5=0.6500 recall@0.5=1.0000 AP@0.75=0.9883 AP@0.75_voc11=0.9817 precision@0.75=0.6500 recall@0.75=1.0000 mAP@[0.5:0.95]=0.8701
+[ckpt] 新最佳 AP@0.5=0.9883 (epoch 4)
+[epoch 4 完成] avg_loss=0.0589 val_AP@0.5=0.9883 val_mAP=0.8701 time=8.7s elapsed=0.7min
+[epoch 5] iter 001/34 loss=0.0316 cls=0.0152 box=0.0136 obj=0.0025 rpn_box=0.0004 lr=0.005000
+[epoch 5] iter 010/34 loss=0.0614 cls=0.0304 box=0.0292 obj=0.0005 rpn_box=0.0013 lr=0.005000
+[epoch 5] iter 020/34 loss=0.0242 cls=0.0155 box=0.0082 obj=0.0002 rpn_box=0.0003 lr=0.005000
+[epoch 5] iter 030/34 loss=0.0825 cls=0.0282 box=0.0505 obj=0.0009 rpn_box=0.0029 lr=0.005000
+[epoch 5] 单 epoch 训练耗时 7.3s
+[eval] total_gt=91 AP@0.5=0.9922 AP@0.5_voc11=0.9852 precision@0.5=0.6947 recall@0.5=1.0000 AP@0.75=0.9922 AP@0.75_voc11=0.9852 precision@0.75=0.6947 recall@0.75=1.0000 mAP@[0.5:0.95]=0.8621
+[ckpt] 新最佳 AP@0.5=0.9922 (epoch 5)
+[epoch 5 完成] avg_loss=0.0527 val_AP@0.5=0.9922 val_mAP=0.8621 time=8.6s elapsed=0.9min
+[epoch 6] iter 001/34 loss=0.0551 cls=0.0164 box=0.0341 obj=0.0039 rpn_box=0.0008 lr=0.005000
+[epoch 6] iter 010/34 loss=0.0400 cls=0.0137 box=0.0253 obj=0.0005 rpn_box=0.0005 lr=0.005000
+[epoch 6] iter 020/34 loss=0.0332 cls=0.0175 box=0.0133 obj=0.0005 rpn_box=0.0019 lr=0.005000
+[epoch 6] iter 030/34 loss=0.0416 cls=0.0161 box=0.0235 obj=0.0006 rpn_box=0.0014 lr=0.005000
+[epoch 6] 单 epoch 训练耗时 7.1s
+[eval] total_gt=91 AP@0.5=0.9917 AP@0.5_voc11=0.9851 precision@0.5=0.7339 recall@0.5=1.0000 AP@0.75=0.9917 AP@0.75_voc11=0.9851 precision@0.75=0.7339 recall@0.75=1.0000 mAP@[0.5:0.95]=0.8815
+[epoch 6 完成] avg_loss=0.0476 val_AP@0.5=0.9917 val_mAP=0.8815 time=8.3s elapsed=1.0min
+[epoch 7] iter 001/34 loss=0.0362 cls=0.0162 box=0.0191 obj=0.0003 rpn_box=0.0006 lr=0.005000
+[epoch 7] iter 010/34 loss=0.0187 cls=0.0088 box=0.0092 obj=0.0003 rpn_box=0.0004 lr=0.005000
+[epoch 7] iter 020/34 loss=0.0440 cls=0.0228 box=0.0197 obj=0.0002 rpn_box=0.0014 lr=0.005000
+[epoch 7] iter 030/34 loss=0.0298 cls=0.0104 box=0.0187 obj=0.0001 rpn_box=0.0006 lr=0.005000
+[epoch 7] 单 epoch 训练耗时 7.3s
+[eval] total_gt=91 AP@0.5=0.9915 AP@0.5_voc11=0.9844 precision@0.5=0.7712 recall@0.5=1.0000 AP@0.75=0.9719 AP@0.75_voc11=0.9037 precision@0.75=0.7627 recall@0.75=0.9890 mAP@[0.5:0.95]=0.8705
+[epoch 7 完成] avg_loss=0.0427 val_AP@0.5=0.9915 val_mAP=0.8705 time=8.5s elapsed=1.1min
+[epoch 8] iter 001/34 loss=0.0431 cls=0.0238 box=0.0179 obj=0.0005 rpn_box=0.0009 lr=0.005000
+[epoch 8] iter 010/34 loss=0.0254 cls=0.0138 box=0.0106 obj=0.0004 rpn_box=0.0007 lr=0.005000
+[epoch 8] iter 020/34 loss=0.0458 cls=0.0171 box=0.0271 obj=0.0001 rpn_box=0.0015 lr=0.005000
+[epoch 8] iter 030/34 loss=0.0356 cls=0.0141 box=0.0177 obj=0.0023 rpn_box=0.0015 lr=0.005000
+[epoch 8] 单 epoch 训练耗时 7.4s
+[eval] total_gt=91 AP@0.5=0.9930 AP@0.5_voc11=0.9855 precision@0.5=0.7521 recall@0.5=1.0000 AP@0.75=0.9698 AP@0.75_voc11=0.9013 precision@0.75=0.7438 recall@0.75=0.9890 mAP@[0.5:0.95]=0.8903
+[ckpt] 新最佳 AP@0.5=0.9930 (epoch 8)
+[epoch 8 完成] avg_loss=0.0420 val_AP@0.5=0.9930 val_mAP=0.8903 time=8.8s elapsed=1.3min
+[epoch 9] iter 001/34 loss=0.0261 cls=0.0130 box=0.0117 obj=0.0009 rpn_box=0.0006 lr=0.005000
+[epoch 9] iter 010/34 loss=0.0356 cls=0.0137 box=0.0200 obj=0.0001 rpn_box=0.0019 lr=0.005000
+[epoch 9] iter 020/34 loss=0.0364 cls=0.0127 box=0.0230 obj=0.0002 rpn_box=0.0006 lr=0.005000
+[epoch 9] iter 030/34 loss=0.0215 cls=0.0113 box=0.0093 obj=0.0001 rpn_box=0.0008 lr=0.005000
+[epoch 9] 单 epoch 训练耗时 7.3s
+[eval] total_gt=91 AP@0.5=0.9932 AP@0.5_voc11=0.9868 precision@0.5=0.7712 recall@0.5=1.0000 AP@0.75=0.9932 AP@0.75_voc11=0.9868 precision@0.75=0.7712 recall@0.75=1.0000 mAP@[0.5:0.95]=0.8736
+[ckpt] 新最佳 AP@0.5=0.9932 (epoch 9)
+[epoch 9 完成] avg_loss=0.0365 val_AP@0.5=0.9932 val_mAP=0.8736 time=8.6s elapsed=1.4min
+[epoch 10] iter 001/34 loss=0.0517 cls=0.0197 box=0.0295 obj=0.0003 rpn_box=0.0022 lr=0.000500
+[epoch 10] iter 010/34 loss=0.0376 cls=0.0178 box=0.0181 obj=0.0005 rpn_box=0.0013 lr=0.000500
+[epoch 10] iter 020/34 loss=0.0424 cls=0.0193 box=0.0216 obj=0.0003 rpn_box=0.0012 lr=0.000500
+[epoch 10] iter 030/34 loss=0.0279 cls=0.0160 box=0.0110 obj=0.0004 rpn_box=0.0005 lr=0.000500
+[epoch 10] 单 epoch 训练耗时 7.3s
+[eval] total_gt=91 AP@0.5=0.9934 AP@0.5_voc11=0.9869 precision@0.5=0.7845 recall@0.5=1.0000 AP@0.75=0.9687 AP@0.75_voc11=0.9003 precision@0.75=0.7759 recall@0.75=0.9890 mAP@[0.5:0.95]=0.8850
+[ckpt] 新最佳 AP@0.5=0.9934 (epoch 10)
+[epoch 10 完成] avg_loss=0.0326 val_AP@0.5=0.9934 val_mAP=0.8850 time=8.6s elapsed=1.6min
+[epoch 11] iter 001/34 loss=0.0581 cls=0.0245 box=0.0319 obj=0.0003 rpn_box=0.0015 lr=0.000500
+[epoch 11] iter 010/34 loss=0.0284 cls=0.0167 box=0.0099 obj=0.0002 rpn_box=0.0017 lr=0.000500
+[epoch 11] iter 020/34 loss=0.0296 cls=0.0141 box=0.0139 obj=0.0004 rpn_box=0.0012 lr=0.000500
+[epoch 11] iter 030/34 loss=0.0218 cls=0.0099 box=0.0103 obj=0.0001 rpn_box=0.0015 lr=0.000500
+[epoch 11] 单 epoch 训练耗时 7.1s
+[eval] total_gt=91 AP@0.5=0.9928 AP@0.5_voc11=0.9876 precision@0.5=0.7778 recall@0.5=1.0000 AP@0.75=0.9563 AP@0.75_voc11=0.8975 precision@0.75=0.7607 recall@0.75=0.9780 mAP@[0.5:0.95]=0.8806
+[epoch 11 完成] avg_loss=0.0335 val_AP@0.5=0.9928 val_mAP=0.8806 time=8.3s elapsed=1.7min
+[epoch 12] iter 001/34 loss=0.0298 cls=0.0098 box=0.0185 obj=0.0004 rpn_box=0.0011 lr=0.000500
+[epoch 12] iter 010/34 loss=0.0462 cls=0.0160 box=0.0274 obj=0.0004 rpn_box=0.0024 lr=0.000500
+[epoch 12] iter 020/34 loss=0.0227 cls=0.0075 box=0.0138 obj=0.0001 rpn_box=0.0012 lr=0.000500
+[epoch 12] iter 030/34 loss=0.0249 cls=0.0125 box=0.0114 obj=0.0004 rpn_box=0.0006 lr=0.000500
+[epoch 12] 单 epoch 训练耗时 7.2s
+[eval] total_gt=91 AP@0.5=0.9929 AP@0.5_voc11=0.9868 precision@0.5=0.8053 recall@0.5=1.0000 AP@0.75=0.9670 AP@0.75_voc11=0.8986 precision@0.75=0.7965 recall@0.75=0.9890 mAP@[0.5:0.95]=0.8860
+[epoch 12 完成] avg_loss=0.0295 val_AP@0.5=0.9929 val_mAP=0.8860 time=8.4s elapsed=1.9min
+[epoch 13] iter 001/34 loss=0.0309 cls=0.0133 box=0.0160 obj=0.0003 rpn_box=0.0014 lr=0.000050
+[epoch 13] iter 010/34 loss=0.0173 cls=0.0058 box=0.0112 obj=0.0002 rpn_box=0.0002 lr=0.000050
+[epoch 13] iter 020/34 loss=0.0321 cls=0.0106 box=0.0188 obj=0.0008 rpn_box=0.0020 lr=0.000050
+[epoch 13] iter 030/34 loss=0.0273 cls=0.0152 box=0.0111 obj=0.0001 rpn_box=0.0009 lr=0.000050
+[epoch 13] 单 epoch 训练耗时 7.2s
+[eval] total_gt=91 AP@0.5=0.9928 AP@0.5_voc11=0.9868 precision@0.5=0.7845 recall@0.5=1.0000 AP@0.75=0.9555 AP@0.75_voc11=0.8976 precision@0.75=0.7672 recall@0.75=0.9780 mAP@[0.5:0.95]=0.8834
+[epoch 13 完成] avg_loss=0.0315 val_AP@0.5=0.9928 val_mAP=0.8834 time=8.4s elapsed=2.0min
+[epoch 14] iter 001/34 loss=0.0197 cls=0.0067 box=0.0115 obj=0.0008 rpn_box=0.0008 lr=0.000050
+[epoch 14] iter 010/34 loss=0.0184 cls=0.0055 box=0.0108 obj=0.0006 rpn_box=0.0014 lr=0.000050
+[epoch 14] iter 020/34 loss=0.0396 cls=0.0191 box=0.0185 obj=0.0004 rpn_box=0.0015 lr=0.000050
+[epoch 14] iter 030/34 loss=0.0214 cls=0.0098 box=0.0105 obj=0.0006 rpn_box=0.0004 lr=0.000050
+[epoch 14] 单 epoch 训练耗时 7.2s
+[eval] total_gt=91 AP@0.5=0.9931 AP@0.5_voc11=0.9860 precision@0.5=0.8053 recall@0.5=1.0000 AP@0.75=0.9675 AP@0.75_voc11=0.8987 precision@0.75=0.7965 recall@0.75=0.9890 mAP@[0.5:0.95]=0.8871
+[epoch 14 完成] avg_loss=0.0305 val_AP@0.5=0.9931 val_mAP=0.8871 time=8.4s elapsed=2.1min
+[done] 训练完成, 总耗时 2.1 分钟, 最佳 AP@0.5=0.9934 (epoch 10)
