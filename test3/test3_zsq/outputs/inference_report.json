@@ -1,0 +1,185 @@
+{
+  "ckpt_epoch": 5,
+  "ckpt_ap_at_save": 0.9899168502200736,
+  "thresholds": [
+    0.3,
+    0.5,
+    0.7,
+    0.9
+  ],
+  "per_image": [
+    {
+      "index": 132,
+      "num_gt": 2,
+      "num_raw_predictions": 2,
+      "top1_score": 0.9981326460838318,
+      "threshold_counts": {
+        "0.30": 2,
+        "0.50": 2,
+        "0.70": 2,
+        "0.90": 2
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.896639883518219,
+        0.9616982936859131
+      ],
+      "image_file": "pred_thresh_grid_00.png"
+    },
+    {
+      "index": 87,
+      "num_gt": 4,
+      "num_raw_predictions": 4,
+      "top1_score": 0.9982573390007019,
+      "threshold_counts": {
+        "0.30": 4,
+        "0.50": 4,
+        "0.70": 4,
+        "0.90": 4
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.9375119209289551,
+        0.9650458693504333,
+        0.944567084312439,
+        0.9627383351325989
+      ],
+      "image_file": "pred_thresh_grid_01.png"
+    },
+    {
+      "index": 6,
+      "num_gt": 3,
+      "num_raw_predictions": 5,
+      "top1_score": 0.9968053102493286,
+      "threshold_counts": {
+        "0.30": 5,
+        "0.50": 5,
+        "0.70": 5,
+        "0.90": 5
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.9399135112762451,
+        0.8292953968048096,
+        0.8591468930244446
+      ],
+      "image_file": "pred_thresh_grid_02.png"
+    },
+    {
+      "index": 36,
+      "num_gt": 2,
+      "num_raw_predictions": 2,
+      "top1_score": 0.9977343082427979,
+      "threshold_counts": {
+        "0.30": 2,
+        "0.50": 2,
+        "0.70": 2,
+        "0.90": 2
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.9374087452888489,
+        0.8728834390640259
+      ],
+      "image_file": "pred_thresh_grid_03.png"
+    },
+    {
+      "index": 94,
+      "num_gt": 3,
+      "num_raw_predictions": 3,
+      "top1_score": 0.99704509973526,
+      "threshold_counts": {
+        "0.30": 3,
+        "0.50": 3,
+        "0.70": 3,
+        "0.90": 3
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.9226668477058411,
+        0.8808432817459106,
+        0.8440847396850586
+      ],
+      "image_file": "pred_thresh_grid_04.png"
+    },
+    {
+      "index": 70,
+      "num_gt": 3,
+      "num_raw_predictions": 3,
+      "top1_score": 0.9980199337005615,
+      "threshold_counts": {
+        "0.30": 3,
+        "0.50": 3,
+        "0.70": 2,
+        "0.90": 2
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.9305169582366943,
+        0.8061764240264893,
+        0.9168795943260193
+      ],
+      "image_file": "pred_thresh_grid_05.png"
+    },
+    {
+      "index": 58,
+      "num_gt": 3,
+      "num_raw_predictions": 5,
+      "top1_score": 0.9979071617126465,
+      "threshold_counts": {
+        "0.30": 4,
+        "0.50": 3,
+        "0.70": 3,
+        "0.90": 3
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.913124680519104,
+        0.89667809009552,
+        0.8961527943611145
+      ],
+      "image_file": "pred_thresh_grid_06.png"
+    },
+    {
+      "index": 157,
+      "num_gt": 3,
+      "num_raw_predictions": 3,
+      "top1_score": 0.9968756437301636,
+      "threshold_counts": {
+        "0.30": 3,
+        "0.50": 3,
+        "0.70": 3,
+        "0.90": 3
+      },
+      "iou_per_gt_at_0.5_score": [
+        0.8644266724586487,
+        0.8412045836448669,
+        0.8088611364364624
+      ],
+      "image_file": "pred_thresh_grid_07.png"
+    }
+  ],
+  "threshold_global_metrics": {
+    "score>=0.30": {
+      "AP": 0.9899168502200736,
+      "precision": 0.8666666746139526,
+      "recall": 1.0,
+      "total_gt": 91,
+      "total_pred": 105
+    },
+    "score>=0.50": {
+      "AP": 0.9899168502200736,
+      "precision": 0.9009901285171509,
+      "recall": 1.0,
+      "total_gt": 91,
+      "total_pred": 101
+    },
+    "score>=0.70": {
+      "AP": 0.9080086567185144,
+      "precision": 0.8989899158477783,
+      "recall": 0.9780219793319702,
+      "total_gt": 91,
+      "total_pred": 99
+    },
+    "score>=0.90": {
+      "AP": 0.9080086567185144,
+      "precision": 0.9354838728904724,
+      "recall": 0.9560439586639404,
+      "total_gt": 91,
+      "total_pred": 93
+    }
+  }
+}

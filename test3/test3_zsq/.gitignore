@@ -1,0 +1,7 @@
+# 训练产物（模型权重体积大，不入仓）
+outputs/checkpoints/*.pth
+
+# 运行时日志
+outputs/train_stdout.log
+__pycache__/
+*.pyc
